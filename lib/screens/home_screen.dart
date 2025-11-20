@@ -36,6 +36,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showNotificationBanner = false;
   // Track in-flight like requests to prevent duplicate taps
   final Set<String> _likingPhotos = {};
+  // Timestamp for recently optimized updates (photoId -> DateTime)
+  final Map<String, DateTime> _recentlyUpdated = {};
   // Track pending comments by photoId, each value is a list of temp comment timestamps
   // (currently not used, placeholder for future improvements)
   // final Map<String, List<String>> _pendingComments = {};
@@ -228,8 +230,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ]);
 
       _challenge = Challenge.fromJson(results[0] as Map<String, dynamic>);
-      _myPhotos = results[1] as List<Photo>;
-      _friendsPhotos = results[2] as List<Photo>;
+      final serverMyPhotos = results[1] as List<Photo>;
+      final serverFriendsPhotos = results[2] as List<Photo>;
+
+      // Merge server photos with local ones to avoid overwriting optimistic updates
+      _myPhotos = _mergeServerWithLocal(serverMyPhotos, _myPhotos);
+      _friendsPhotos = _mergeServerWithLocal(
+        serverFriendsPhotos,
+        _friendsPhotos,
+      );
 
       final notifs = results[3] as Map<String, dynamic>;
       _unreadCount = notifs['unreadCount'] ?? 0;
@@ -258,6 +267,48 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     }
+  }
+
+  // Merge server photo list with local list, preserving local likes if recently updated
+  List<Photo> _mergeServerWithLocal(
+    List<Photo> serverList,
+    List<Photo> localList,
+  ) {
+    final Map<String, Photo> localById = {for (var p in localList) p.id: p};
+    final now = DateTime.now();
+    const debounce = Duration(seconds: 4);
+
+    List<Photo> merged = [];
+    for (final serverPhoto in serverList) {
+      final local = localById[serverPhoto.id];
+      if (local != null && _recentlyUpdated.containsKey(serverPhoto.id)) {
+        final updatedAt = _recentlyUpdated[serverPhoto.id]!;
+        if (now.difference(updatedAt) <= debounce) {
+          // Preserve local likes (optimistic update) during debounce window
+          final mergedPhoto = Photo(
+            id: serverPhoto.id,
+            username: serverPhoto.username,
+            date: serverPhoto.date,
+            imageData: serverPhoto.imageData,
+            caption: serverPhoto.caption,
+            challenge: serverPhoto.challenge,
+            likes: List<String>.from(local.likes),
+            comments: List<Comment>.from(serverPhoto.comments),
+            userProfileImage: serverPhoto.userProfileImage,
+            createdAt: serverPhoto.createdAt,
+            userStreak: serverPhoto.userStreak,
+            userAchievements: serverPhoto.userAchievements,
+          );
+          merged.add(mergedPhoto);
+          continue;
+        }
+      }
+      merged.add(serverPhoto);
+    }
+
+    // Prune recent updates older than debounce
+    _recentlyUpdated.removeWhere((k, v) => now.difference(v) > debounce);
+    return merged;
   }
 
   void _showNotification(String title, String body) async {
@@ -823,11 +874,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         duration: const Duration(milliseconds: 180),
                         transitionBuilder: (child, animation) =>
                             ScaleTransition(scale: animation, child: child),
-                        child: Icon(
-                          isLiked ? Icons.favorite : Icons.favorite_border,
-                          color: isLiked ? Colors.red : Colors.white,
-                          key: ValueKey<bool>(isLiked),
-                        ),
+                        child: _likingPhotos.contains(photo.id)
+                            ? SizedBox(
+                                key: ValueKey('loading_${photo.id}'),
+                                width: 24,
+                                height: 24,
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  valueColor: AlwaysStoppedAnimation(
+                                    Color(0xFFFF6B9D),
+                                  ),
+                                ),
+                              )
+                            : Icon(
+                                isLiked
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isLiked ? Colors.red : Colors.white,
+                                key: ValueKey<bool>(isLiked),
+                              ),
                       ),
                       onPressed: () => _likePhoto(photo),
                     ),
@@ -1168,6 +1233,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // prevent repeated taps while request in flight
     if (_likingPhotos.contains(photo.id)) return;
     _likingPhotos.add(photo.id);
+    // mark as recently updated for debounce protection
+    _recentlyUpdated[photo.id] = DateTime.now();
 
     final wasLiked = photo.likes.contains(myUsername);
 
@@ -1220,6 +1287,11 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } finally {
       _likingPhotos.remove(photo.id);
+      // clean possible stale entries in recently updated map
+      final now = DateTime.now();
+      _recentlyUpdated.removeWhere(
+        (k, v) => now.difference(v) > const Duration(seconds: 10),
+      );
     }
   }
 
