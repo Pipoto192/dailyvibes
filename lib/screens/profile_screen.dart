@@ -537,7 +537,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Center(
-                  child: Text('📸', style: TextStyle(fontSize: 20))),
+                  child: Icon(Icons.camera_alt, size: 20, color: Colors.white)),
             ),
             const SizedBox(width: 12),
             const Text('Daily Vibes'),

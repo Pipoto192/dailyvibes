@@ -466,8 +466,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         IconButton(
-          icon:
-              auth.user?.profileImage != null &&
+          icon: auth.user?.profileImage != null &&
                   auth.user!.profileImage!.isNotEmpty
               ? CircleAvatar(
                   backgroundImage: MemoryImage(
@@ -800,7 +799,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: Row(
                     children: [
-                      const Text('📸', style: TextStyle(fontSize: 20)),
+                      const Icon(Icons.camera_alt,
+                          size: 20, color: Colors.white),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -825,7 +825,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            '🔥 Streak: ${photo.userStreak} Tage in Folge hochgeladen!',
+                                            'Streak: ${photo.userStreak} Tage in Folge hochgeladen!',
                                           ),
                                           duration: const Duration(seconds: 2),
                                         ),
@@ -833,10 +833,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     },
                                     child: Row(
                                       children: [
-                                        const Text(
-                                          '🔥',
-                                          style: TextStyle(fontSize: 16),
-                                        ),
+                                        const Icon(Icons.local_fire_department,
+                                            size: 16, color: Colors.orange),
                                         Text(
                                           '${photo.userStreak}',
                                           style: TextStyle(
@@ -912,18 +910,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               )
                             : (_queuedPhotos.contains(photo.id))
-                            ? Icon(
-                                Icons.sync,
-                                color: Colors.orange,
-                                key: ValueKey('queued_${photo.id}'),
-                              )
-                            : Icon(
-                                isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isLiked ? Colors.red : Colors.white,
-                                key: ValueKey<bool>(isLiked),
-                              ),
+                                ? Icon(
+                                    Icons.sync,
+                                    color: Colors.orange,
+                                    key: ValueKey('queued_${photo.id}'),
+                                  )
+                                : Icon(
+                                    isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: isLiked ? Colors.red : Colors.white,
+                                    key: ValueKey<bool>(isLiked),
+                                  ),
                       ),
                       onPressed: () => _likePhoto(photo),
                     ),
@@ -941,9 +939,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 if (photo.comments.isNotEmpty) ...[
                   const Divider(height: 24),
-                  ...photo.comments
-                      .take(2)
-                      .map(
+                  ...photo.comments.take(2).map(
                         (comment) => Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: RichText(
@@ -1049,7 +1045,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Center(
                 child: Text(
-                  'Noch keine Fotos heute 📸',
+                  'Noch keine Fotos heute',
                   style: TextStyle(color: Colors.white.withOpacity(0.5)),
                 ),
               ),
@@ -1125,7 +1121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      '🔥 Streak: ${photo.userStreak} Tage in Folge hochgeladen!',
+                                      'Streak: ${photo.userStreak} Tage in Folge hochgeladen!',
                                     ),
                                     duration: const Duration(seconds: 2),
                                   ),
@@ -1133,10 +1129,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                               child: Row(
                                 children: [
-                                  const Text(
-                                    '🔥',
-                                    style: TextStyle(fontSize: 16),
-                                  ),
+                                  const Icon(Icons.local_fire_department,
+                                      size: 16, color: Colors.orange),
                                   Text(
                                     '${photo.userStreak}',
                                     style: TextStyle(
@@ -1204,18 +1198,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               )
                             : (_queuedPhotos.contains(photo.id))
-                            ? Icon(
-                                Icons.sync,
-                                color: Colors.orange,
-                                key: ValueKey('queued_${photo.id}'),
-                              )
-                            : Icon(
-                                isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isLiked ? Colors.red : Colors.white,
-                                key: ValueKey<bool>(isLiked),
-                              ),
+                                ? Icon(
+                                    Icons.sync,
+                                    color: Colors.orange,
+                                    key: ValueKey('queued_${photo.id}'),
+                                  )
+                                : Icon(
+                                    isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: isLiked ? Colors.red : Colors.white,
+                                    key: ValueKey<bool>(isLiked),
+                                  ),
                       ),
                       onPressed: () => _likePhoto(photo),
                     ),
@@ -1233,9 +1227,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 if (photo.comments.isNotEmpty) ...[
                   const Divider(height: 24),
-                  ...photo.comments
-                      .take(2)
-                      .map(
+                  ...photo.comments.take(2).map(
                         (comment) => Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: RichText(
@@ -1301,12 +1293,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final desiredState = !wasLiked;
     try {
       final updatedLikes = await context.read<ApiService>().likePhoto(
-        photo.id,
-        photo.username,
-        photo.date,
-        setState: desiredState,
-        enqueueOnFail: false,
-      );
+            photo.id,
+            photo.username,
+            photo.date,
+            setState: desiredState,
+            enqueueOnFail: false,
+          );
       // Ensure local state follows server authoritative state
       if (mounted) {
         setState(() {
@@ -1330,11 +1322,11 @@ class _HomeScreenState extends State<HomeScreen> {
       // If error, enqueue the desired state for retry and show UI indicator
       try {
         await context.read<ApiService>().enqueueLikeAction(
-          photo.id,
-          myUsername,
-          photo.date,
-          desiredState,
-        );
+              photo.id,
+              myUsername,
+              photo.date,
+              desiredState,
+            );
         if (mounted) {
           setState(() {
             _queuedPhotos.add(photo.id);
@@ -1501,7 +1493,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                             final myUsername =
                                 context.read<AuthService>().user?.username ??
-                                '';
+                                    '';
                             if (myUsername.isEmpty) return;
 
                             // Create a pending comment locally
@@ -1523,11 +1515,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                             try {
                               await context.read<ApiService>().commentPhoto(
-                                photo.id,
-                                photo.username,
-                                photo.date,
-                                text,
-                              );
+                                    photo.id,
+                                    photo.username,
+                                    photo.date,
+                                    text,
+                                  );
 
                               // On success, reload to sync with server
                               if (context.mounted) {

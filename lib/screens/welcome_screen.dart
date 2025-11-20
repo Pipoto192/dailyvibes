@@ -13,12 +13,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<Map<String, String>> _pages = [
+  final List<Map<String, dynamic>> _pages = [
     {
       'title': 'Willkommen bei\nDaily Vibes! 🎉',
       'description':
           'Teile dein tägliches Leben mit Freunden durch authentische Fotos',
-      'icon': '📸',
+      'icon': Icons.camera_alt,
     },
     {
       'title': 'Täglich neue\nChallenges 🎯',
@@ -36,7 +36,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       'title': 'Verbinde dich\nmit Freunden 👥',
       'description':
           'Füge Freunde hinzu, like ihre Fotos und kommentiere.\nBleib in Kontakt!',
-      'icon': '💬',
+      'icon': Icons.chat_bubble_outline,
     },
   ];
 
@@ -80,16 +80,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildPage(Map<String, String> page) {
+  Widget _buildPage(Map<String, dynamic> page) {
     return Padding(
       padding: const EdgeInsets.all(32.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            page['icon']!,
-            style: const TextStyle(fontSize: 120),
-          ),
+          // If icon is IconData show Material Icon, otherwise show emoji text
+          if (page['icon'] is IconData) ...[
+            Icon(page['icon'] as IconData, size: 120, color: Colors.white),
+          ] else ...[
+            Text(
+              page['icon']?.toString() ?? '',
+              style: const TextStyle(fontSize: 120),
+            ),
+          ],
           const SizedBox(height: 60),
           Text(
             page['title']!,
@@ -202,7 +207,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<void> _finish() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('hasSeenWelcome', true);
-    
+
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const AuthScreen()),
