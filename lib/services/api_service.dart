@@ -263,7 +263,15 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (data['success'] == true && data['photo'] != null) {
       final photo = data['photo'];
-      return (photo['likes'] as List? ?? []).map((e) => e as String).toList();
+      final likes = (photo['likes'] as List? ?? [])
+          .map((e) => e as String)
+          .toList();
+      // Helpful debug logging for troubleshooting like-state
+      try {
+        // ignore: avoid_print
+        print('Like API: status=${response.statusCode}, likes=${likes.length}');
+      } catch (_) {}
+      return likes;
     }
 
     return [];

@@ -1192,6 +1192,17 @@ class _HomeScreenState extends State<HomeScreen> {
           photo.likes.clear();
           photo.likes.addAll(updatedLikes);
         });
+
+        // If server didn't persist the like (user not in likes after optimistic add)
+        final myUsername = context.read<AuthService>().user?.username ?? '';
+        if (!wasLiked && !updatedLikes.contains(myUsername)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Like konnte nicht gespeichert werden'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
     } catch (e) {
       // Revert optimistic change on error
