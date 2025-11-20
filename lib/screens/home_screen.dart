@@ -34,6 +34,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int _unreadCount = 0;
   List<Map<String, dynamic>> _lastNotifications = [];
   bool _showNotificationBanner = false;
+  // Track in-flight like requests to prevent duplicate taps
+  final Set<String> _likingPhotos = {};
+  // Track pending comments by photoId, each value is a list of temp comment timestamps
+  // (currently not used, placeholder for future improvements)
+  // final Map<String, List<String>> _pendingComments = {};
 
   @override
   void initState() {
@@ -807,10 +812,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
                 Row(
                   children: [
+                    // Like button with optimistic UI update & AnimatedSwitcher for smoothness
                     IconButton(
-                      icon: Icon(
-                        isLiked ? Icons.favorite : Icons.favorite_border,
-                        color: isLiked ? Colors.red : Colors.white,
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        transitionBuilder: (child, animation) => ScaleTransition(
+                          scale: animation,
+                          child: child,
+                        ),
+                        child: Icon(
+                          isLiked ? Icons.favorite : Icons.favorite_border,
+                          color: isLiked ? Colors.red : Colors.white,
+                          key: ValueKey<bool>(isLiked),
+                        ),
                       ),
                       onPressed: () => _likePhoto(photo),
                     ),
@@ -1063,9 +1077,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(
-                        isLiked ? Icons.favorite : Icons.favorite_border,
-                        color: isLiked ? Colors.red : Colors.white,
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        transitionBuilder: (child, animation) => ScaleTransition(
+                          scale: animation,
+                          child: child,
+                        ),
+                        child: Icon(
+                          isLiked ? Icons.favorite : Icons.favorite_border,
+                          color: isLiked ? Colors.red : Colors.white,
+                          key: ValueKey<bool>(isLiked),
+                        ),
                       ),
                       onPressed: () => _likePhoto(photo),
                     ),
@@ -1119,19 +1141,44 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _likePhoto(Photo photo) async {
+    final myUsername = context.read<AuthService>().user?.username ?? '';
+    if (myUsername.isEmpty) return;
+
+    // prevent repeated taps while request in flight
+    if (_likingPhotos.contains(photo.id)) return;
+    _likingPhotos.add(photo.id);
+
+    final wasLiked = photo.likes.contains(myUsername);
+
+    // Optimistically update UI
+    setState(() {
+      if (wasLiked) {
+        photo.likes.remove(myUsername);
+      } else {
+        photo.likes.add(myUsername);
+      }
+    });
+
     try {
-      print(
-          'Liking photo: id=${photo.id}, username=${photo.username}, date=${photo.date}');
       await context
           .read<ApiService>()
           .likePhoto(photo.id, photo.username, photo.date);
-      await _loadData(silent: true);
     } catch (e) {
+      // Revert optimistic change on error
+      setState(() {
+        if (wasLiked) {
+          photo.likes.add(myUsername);
+        } else {
+          photo.likes.remove(myUsername);
+        }
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler beim Liken: $e')),
         );
       }
+    } finally {
+      _likingPhotos.remove(photo.id);
     }
   }
 
@@ -1169,7 +1216,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
         title: const Text('Kommentare'),
         content: SizedBox(
@@ -1253,19 +1303,39 @@ class _HomeScreenState extends State<HomeScreen> {
                   IconButton(
                     icon: const Icon(Icons.send, color: Color(0xFFFF6B9D)),
                     onPressed: () async {
-                      if (commentController.text.trim().isEmpty) return;
+                      final text = commentController.text.trim();
+                      if (text.isEmpty) return;
+
+                      final myUsername = context.read<AuthService>().user?.username ?? '';
+                      if (myUsername.isEmpty) return;
+
+                      // Create a pending comment locally
+                      final pendingComment = Comment(
+                        username: myUsername,
+                        text: text,
+                        timestamp: DateTime.now().toIso8601String(),
+                      );
+
+                      // Add locally (optimistic)
+                      setState(() {
+                        photo.comments.add(pendingComment);
+                      });
+                      // Update dialog state too
+                      setDialogState(() {});
+
+                      // clear input for UX
+                      commentController.clear();
 
                       try {
                         await context.read<ApiService>().commentPhoto(
                               photo.id,
                               photo.username,
                               photo.date,
-                              commentController.text.trim(),
+                              text,
                             );
 
-                        commentController.clear();
+                        // On success, reload to sync with server
                         if (context.mounted) {
-                          Navigator.pop(context);
                           await _loadData(silent: true);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -1274,13 +1344,19 @@ class _HomeScreenState extends State<HomeScreen> {
                               duration: Duration(seconds: 1),
                             ),
                           );
+                          // close dialog after post
+                          Navigator.pop(context);
                         }
                       } catch (e) {
+                        // Remove the pending comment if the request failed
+                        setState(() {
+                          photo.comments.removeWhere((c) =>
+                              c.timestamp == pendingComment.timestamp && c.username == pendingComment.username && c.text == pendingComment.text);
+                        });
+                        setDialogState(() {});
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('Fehler: $e'),
-                                backgroundColor: Colors.red),
+                            SnackBar(content: Text('Fehler: $e'), backgroundColor: Colors.red),
                           );
                         }
                       }
@@ -1297,7 +1373,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Text('Schließen'),
           ),
         ],
-      ),
+      ); // end AlertDialog
+          },
+        ); // end StatefulBuilder
+      },
     );
   }
 
