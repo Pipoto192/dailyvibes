@@ -1317,7 +1317,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // If server didn't persist the like (user not in likes after optimistic add)
         final myUsername = context.read<AuthService>().user?.username ?? '';
-        if (!wasLiked && !updatedLikes.contains(myUsername)) {
+        if (!wasLiked && !(updatedLikes?.contains(myUsername) ?? false)) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Like konnte nicht gespeichert werden'),
