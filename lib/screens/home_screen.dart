@@ -34,6 +34,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _unreadCount = 0;
   List<Map<String, dynamic>> _lastNotifications = [];
   bool _showNotificationBanner = false;
+  // Per-section loading flags for progressive display
+  bool _isChallengeLoading = true;
+  bool _isMyPhotosLoading = true;
+  bool _isFriendsPhotosLoading = true;
   // Track in-flight like requests to prevent duplicate taps
   final Set<String> _likingPhotos = {};
   // Track pending comments by photoId, each value is a list of temp comment timestamps
@@ -211,7 +215,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData({bool silent = false}) async {
-    if (!silent) setState(() => _isLoading = true);
+    // Set section loading flags so the UI can show placeholders while we fetch
+    if (!silent) {
+      setState(() {
+        _isChallengeLoading = true;
+        _isMyPhotosLoading = true;
+        _isFriendsPhotosLoading = true;
+      });
+    }
 
     try {
       final api = context.read<ApiService>();
@@ -245,7 +256,13 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       _lastNotifications = List<Map<String, dynamic>>.from(notifications);
 
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted)
+        setState(() {
+          _isChallengeLoading = false;
+          _isMyPhotosLoading = false;
+          _isFriendsPhotosLoading = false;
+          _isLoading = false;
+        });
     } catch (e) {
       if (mounted && !silent) {
         setState(() => _isLoading = false);
@@ -271,12 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body:
-            Center(child: CircularProgressIndicator(color: Color(0xFFFF6B9D))),
-      );
-    }
+    // The scaffold is shown immediately; we show placeholders for loading sections.
 
     return Scaffold(
       body: Container(
@@ -294,6 +306,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: CustomScrollView(
               slivers: [
                 _buildAppBar(),
+                // Show a determinate progress indicator for initial load
+                SliverToBoxAdapter(
+                  child: _buildLinearProgress(),
+                ),
                 if (kIsWeb && _showNotificationBanner)
                   SliverToBoxAdapter(child: _buildNotificationBanner()),
                 SliverToBoxAdapter(child: _buildChallengeCard()),
@@ -454,6 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildChallengeCard() {
+    if (_isChallengeLoading) return _buildChallengeSkeleton();
     if (_challenge == null) return const SizedBox();
 
     return Container(
@@ -502,6 +519,47 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 16),
           _buildTimer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChallengeSkeleton() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8))),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                        height: 22, color: Colors.white.withOpacity(0.06)),
+                    const SizedBox(height: 8),
+                    Container(
+                        height: 14, color: Colors.white.withOpacity(0.04)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(height: 48, color: Colors.white.withOpacity(0.04)),
         ],
       ),
     );
@@ -594,6 +652,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMyPhotoSection() {
+    if (_isMyPhotosLoading) return _buildMyPhotosSkeleton();
     final hasPhotos = _myPhotos.isNotEmpty;
     final photoCount = _myPhotos.length;
 
@@ -635,6 +694,54 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           else
             _buildAddPhotoCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMyPhotosSkeleton() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text('Deine Bilder von heute',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 450,
+            child: PageView.builder(
+              itemCount: 3,
+              itemBuilder: (_, __) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.03),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                          width: 64,
+                          height: 64,
+                          color: Colors.white.withOpacity(0.06)),
+                      const SizedBox(height: 12),
+                      Container(
+                          width: 160,
+                          height: 16,
+                          color: Colors.white.withOpacity(0.06)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -816,7 +923,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     IconButton(
                       icon: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 180),
-                        transitionBuilder: (child, animation) => ScaleTransition(
+                        transitionBuilder: (child, animation) =>
+                            ScaleTransition(
                           scale: animation,
                           child: child,
                         ),
@@ -914,6 +1022,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFriendsPhotosSection() {
+    if (_isFriendsPhotosLoading) return _buildFriendsPhotosSkeleton();
     final friendPhotos = List<Photo>.from(_friendsPhotos)
       ..sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''));
 
@@ -953,6 +1062,50 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFriendsPhotosSkeleton() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Freund:innen Feed',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 300,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: 4,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, __) => Container(
+                width: 260,
+                decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.03),
+                    borderRadius: BorderRadius.circular(20)),
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLinearProgress() {
+    final total = 3;
+    final loaded = (_isChallengeLoading ? 0 : 1) +
+        (_isMyPhotosLoading ? 0 : 1) +
+        (_isFriendsPhotosLoading ? 0 : 1);
+    if (loaded == total) return const SizedBox.shrink();
+    final progress = loaded / total;
+    return LinearProgressIndicator(
+      value: progress,
+      color: const Color(0xFFFF6B9D),
+      backgroundColor: Colors.white.withOpacity(0.04),
+      minHeight: 4,
     );
   }
 
@@ -1079,7 +1232,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     IconButton(
                       icon: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 180),
-                        transitionBuilder: (child, animation) => ScaleTransition(
+                        transitionBuilder: (child, animation) =>
+                            ScaleTransition(
                           scale: animation,
                           child: child,
                         ),
@@ -1220,160 +1374,168 @@ class _HomeScreenState extends State<HomeScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        title: const Text('Kommentare'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (photo.comments.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Noch keine Kommentare',
-                    style: TextStyle(color: Colors.white.withOpacity(0.5)),
-                  ),
-                )
-              else
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: photo.comments.length,
-                    itemBuilder: (context, index) {
-                      final comment = photo.comments[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            RichText(
-                              text: TextSpan(
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 14),
+              backgroundColor: const Color(0xFF1A1A1A),
+              title: const Text('Kommentare'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (photo.comments.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'Noch keine Kommentare',
+                          style:
+                              TextStyle(color: Colors.white.withOpacity(0.5)),
+                        ),
+                      )
+                    else
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: photo.comments.length,
+                          itemBuilder: (context, index) {
+                            final comment = photo.comments[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  TextSpan(
-                                    text: '${comment.username} ',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold),
+                                  RichText(
+                                    text: TextSpan(
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 14),
+                                      children: [
+                                        TextSpan(
+                                          text: '${comment.username} ',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        TextSpan(text: comment.text),
+                                      ],
+                                    ),
                                   ),
-                                  TextSpan(text: comment.text),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _formatTimestamp(comment.timestamp),
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.4),
+                                      fontSize: 11,
+                                    ),
+                                  ),
                                 ],
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _formatTimestamp(comment.timestamp),
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.4),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: commentController,
-                      decoration: InputDecoration(
-                        hintText: 'Kommentar schreiben...',
-                        hintStyle:
-                            TextStyle(color: Colors.white.withOpacity(0.5)),
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.05),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                            );
+                          },
                         ),
                       ),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.send, color: Color(0xFFFF6B9D)),
-                    onPressed: () async {
-                      final text = commentController.text.trim();
-                      if (text.isEmpty) return;
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: commentController,
+                            decoration: InputDecoration(
+                              hintText: 'Kommentar schreiben...',
+                              hintStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.5)),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.05),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon:
+                              const Icon(Icons.send, color: Color(0xFFFF6B9D)),
+                          onPressed: () async {
+                            final text = commentController.text.trim();
+                            if (text.isEmpty) return;
 
-                      final myUsername = context.read<AuthService>().user?.username ?? '';
-                      if (myUsername.isEmpty) return;
+                            final myUsername =
+                                context.read<AuthService>().user?.username ??
+                                    '';
+                            if (myUsername.isEmpty) return;
 
-                      // Create a pending comment locally
-                      final pendingComment = Comment(
-                        username: myUsername,
-                        text: text,
-                        timestamp: DateTime.now().toIso8601String(),
-                      );
-
-                      // Add locally (optimistic)
-                      setState(() {
-                        photo.comments.add(pendingComment);
-                      });
-                      // Update dialog state too
-                      setDialogState(() {});
-
-                      // clear input for UX
-                      commentController.clear();
-
-                      try {
-                        await context.read<ApiService>().commentPhoto(
-                              photo.id,
-                              photo.username,
-                              photo.date,
-                              text,
+                            // Create a pending comment locally
+                            final pendingComment = Comment(
+                              username: myUsername,
+                              text: text,
+                              timestamp: DateTime.now().toIso8601String(),
                             );
 
-                        // On success, reload to sync with server
-                        if (context.mounted) {
-                          await _loadData(silent: true);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Kommentar gepostet!'),
-                              backgroundColor: Colors.green,
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                          // close dialog after post
-                          Navigator.pop(context);
-                        }
-                      } catch (e) {
-                        // Remove the pending comment if the request failed
-                        setState(() {
-                          photo.comments.removeWhere((c) =>
-                              c.timestamp == pendingComment.timestamp && c.username == pendingComment.username && c.text == pendingComment.text);
-                        });
-                        setDialogState(() {});
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Fehler: $e'), backgroundColor: Colors.red),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                ],
+                            // Add locally (optimistic)
+                            setState(() {
+                              photo.comments.add(pendingComment);
+                            });
+                            // Update dialog state too
+                            setDialogState(() {});
+
+                            // clear input for UX
+                            commentController.clear();
+
+                            try {
+                              await context.read<ApiService>().commentPhoto(
+                                    photo.id,
+                                    photo.username,
+                                    photo.date,
+                                    text,
+                                  );
+
+                              // On success, reload to sync with server
+                              if (context.mounted) {
+                                await _loadData(silent: true);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Kommentar gepostet!'),
+                                    backgroundColor: Colors.green,
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                                // close dialog after post
+                                Navigator.pop(context);
+                              }
+                            } catch (e) {
+                              // Remove the pending comment if the request failed
+                              setState(() {
+                                photo.comments.removeWhere((c) =>
+                                    c.timestamp == pendingComment.timestamp &&
+                                    c.username == pendingComment.username &&
+                                    c.text == pendingComment.text);
+                              });
+                              setDialogState(() {});
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text('Fehler: $e'),
+                                      backgroundColor: Colors.red),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Schließen'),
-          ),
-        ],
-      ); // end AlertDialog
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Schließen'),
+                ),
+              ],
+            ); // end AlertDialog
           },
         ); // end StatefulBuilder
       },
