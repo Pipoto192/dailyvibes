@@ -36,6 +36,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showNotificationBanner = false;
   // Track in-flight like requests to prevent duplicate taps
   final Set<String> _likingPhotos = {};
+  // Track queued like requests which will be retried by ApiService
+  final Set<String> _queuedPhotos = {};
+  StreamSubscription<List<String>>? _queueSubscription;
   // Timestamp for recently optimized updates (photoId -> DateTime)
   final Map<String, DateTime> _recentlyUpdated = {};
   // Track pending comments by photoId, each value is a list of temp comment timestamps
@@ -47,6 +50,28 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _checkNotificationPermission();
     _initializeApp();
+    // Attach to ApiService queue stream - to show UI indicators for queued likes
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final api = context.read<ApiService>();
+        final ids = await api.getQueuedPhotoIds();
+        if (mounted) {
+          setState(() {
+            _queuedPhotos.addAll(ids);
+          });
+        }
+        api.queueStream.listen((list) {
+          if (!mounted) return;
+          setState(() {
+            _queuedPhotos
+              ..clear()
+              ..addAll(list);
+          });
+        });
+      } catch (e) {
+        debugPrint('Queue stream subscription error: $e');
+      }
+    });
   }
 
   Future<void> _initializeApp() async {
@@ -202,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startAutoRefresh() {
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       _loadData(silent: true);
     });
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -886,6 +911,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
                               )
+                            : (_queuedPhotos.contains(photo.id))
+                            ? Icon(
+                                Icons.sync,
+                                color: Colors.orange,
+                                key: ValueKey('queued_${photo.id}'),
+                              )
                             : Icon(
                                 isLiked
                                     ? Icons.favorite
@@ -1160,11 +1191,31 @@ class _HomeScreenState extends State<HomeScreen> {
                         duration: const Duration(milliseconds: 180),
                         transitionBuilder: (child, animation) =>
                             ScaleTransition(scale: animation, child: child),
-                        child: Icon(
-                          isLiked ? Icons.favorite : Icons.favorite_border,
-                          color: isLiked ? Colors.red : Colors.white,
-                          key: ValueKey<bool>(isLiked),
-                        ),
+                        child: _likingPhotos.contains(photo.id)
+                            ? SizedBox(
+                                key: ValueKey('loading_${photo.id}'),
+                                width: 24,
+                                height: 24,
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  valueColor: AlwaysStoppedAnimation(
+                                    Color(0xFFFF6B9D),
+                                  ),
+                                ),
+                              )
+                            : (_queuedPhotos.contains(photo.id))
+                            ? Icon(
+                                Icons.sync,
+                                color: Colors.orange,
+                                key: ValueKey('queued_${photo.id}'),
+                              )
+                            : Icon(
+                                isLiked
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isLiked ? Colors.red : Colors.white,
+                                key: ValueKey<bool>(isLiked),
+                              ),
                       ),
                       onPressed: () => _likePhoto(photo),
                     ),
@@ -1247,17 +1298,21 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
 
+    final desiredState = !wasLiked;
     try {
       final updatedLikes = await context.read<ApiService>().likePhoto(
         photo.id,
         photo.username,
         photo.date,
+        setState: desiredState,
+        enqueueOnFail: false,
       );
       // Ensure local state follows server authoritative state
       if (mounted) {
         setState(() {
           photo.likes.clear();
-          photo.likes.addAll(updatedLikes);
+          photo.likes.addAll(updatedLikes ?? []);
+          _queuedPhotos.remove(photo.id);
         });
 
         // If server didn't persist the like (user not in likes after optimistic add)
@@ -1272,6 +1327,22 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (e) {
+      // If error, enqueue the desired state for retry and show UI indicator
+      try {
+        await context.read<ApiService>().enqueueLikeAction(
+          photo.id,
+          myUsername,
+          photo.date,
+          desiredState,
+        );
+        if (mounted) {
+          setState(() {
+            _queuedPhotos.add(photo.id);
+          });
+        }
+      } catch (_) {
+        // ignore enqueue errors
+      }
       // Revert optimistic change on error
       setState(() {
         if (wasLiked) {
@@ -1635,6 +1706,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _queueSubscription?.cancel();
     _refreshTimer?.cancel();
     _countdownTimer?.cancel();
     super.dispose();

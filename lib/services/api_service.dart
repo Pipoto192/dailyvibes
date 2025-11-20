@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import '../models/user.dart';
 import '../models/photo.dart';
 import '../models/challenge.dart';
@@ -11,8 +13,35 @@ class ApiService {
   static String get baseUrl => AppConfig.apiBaseUrl;
 
   final AuthService authService;
+  final String _likeQueueKey = 'api_like_queue_v1';
+  Timer? _queueTimer;
+  final StreamController<List<String>> _queueController =
+      StreamController.broadcast();
+  Stream<List<String>> get queueStream => _queueController.stream;
 
-  ApiService(this.authService);
+  /// Return list of photo IDs currently in queue
+  Future<List<String>> getQueuedPhotoIds() async {
+    final q = await _readLikeQueue();
+    return q.map((e) => e['photoId'] as String).toList();
+  }
+
+  ApiService(this.authService) {
+    _startQueueProcessor();
+    // Attempt immediate processing on startup
+    Future.microtask(() => processLikeQueue());
+  }
+  void _startQueueProcessor() {
+    // Process queue periodically every 15 seconds
+    _queueTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+      await processLikeQueue();
+    });
+  }
+
+  void _stopQueueProcessor() {
+    _queueTimer?.cancel();
+    _queueTimer = null;
+    _queueController.close();
+  }
 
   Map<String, String> get _headers {
     final headers = {'Content-Type': 'application/json'};
@@ -20,6 +49,97 @@ class ApiService {
       headers['Authorization'] = 'Bearer ${authService.token}';
     }
     return headers;
+  }
+
+  // Load queue from shared preferences
+  Future<List<Map<String, dynamic>>> _readLikeQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_likeQueueKey) ?? '[]';
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> _saveLikeQueue(List<Map<String, dynamic>> queue) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_likeQueueKey, jsonEncode(queue));
+    // Notify listeners about current photos in queue
+    try {
+      _queueController.add(queue.map((e) => e['photoId'] as String).toList());
+    } catch (_) {}
+  }
+
+  /// Enqueue a desired like state for later processing.
+  Future<void> enqueueLikeAction(
+    String photoId,
+    String username,
+    String date,
+    bool desired,
+  ) async {
+    final queue = await _readLikeQueue();
+    // Keep the last desired state for the same photoId
+    final existingIndex = queue.indexWhere((e) => e['photoId'] == photoId);
+    final entry = {
+      'photoId': photoId,
+      'username': username,
+      'date': date,
+      'desired': desired,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    if (existingIndex >= 0) {
+      queue[existingIndex] = entry;
+    } else {
+      queue.add(entry);
+    }
+    await _saveLikeQueue(queue);
+  }
+
+  /// Process pending queued like actions. This is resilient and idempotent since server supports set=true/false.
+  Future<void> processLikeQueue() async {
+    try {
+      final queue = await _readLikeQueue();
+      if (queue.isEmpty) return;
+
+      // Collapse to latest per photoId
+      final Map<String, Map<String, dynamic>> byPhoto = {};
+      for (final item in queue) {
+        byPhoto[item['photoId'] as String] = item;
+      }
+
+      final remaining = <Map<String, dynamic>>[];
+      for (final kv in byPhoto.entries) {
+        final item = kv.value;
+        final photoId = item['photoId'] as String;
+        final username = item['username'] as String;
+        final date = item['date'] as String;
+        final desired = item['desired'] as bool;
+
+        try {
+          final likes = await likePhoto(
+            photoId,
+            username,
+            date,
+            setState: desired,
+            enqueueOnFail: false,
+          );
+          // if success, nothing to do - server is now in desired state
+          if (likes == null) {
+            // API call failed - keep in queue
+            remaining.add(item);
+          }
+        } catch (e) {
+          // If any error, keep in queue
+          remaining.add(item);
+        }
+      }
+
+      await _saveLikeQueue(remaining);
+    } catch (e) {
+      // ignore - will retry later
+    }
   }
 
   // Auth
@@ -240,21 +360,38 @@ class ApiService {
     }
   }
 
-  /// Sends a toggle like request and returns the updated likes list from server.
-  Future<List<String>> likePhoto(
+  /// Sends a like/unlike request and returns the updated likes list from server.
+  /// If [setState] is provided, the API will attempt to make the server state
+  /// match that value (true => liked, false => unliked). If omitted, the server
+  /// will keep the existing toggle behavior.
+  Future<List<String>?> likePhoto(
     String photoId,
     String username,
-    String date,
-  ) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/photos/like'),
-      headers: _headers,
-      body: jsonEncode({
-        'photoId': photoId,
-        'photoUsername': username,
-        'photoDate': date,
-      }),
-    );
+    String date, {
+    bool? setState,
+    bool enqueueOnFail = true,
+  }) async {
+    http.Response response;
+    try {
+      response = await http.post(
+        Uri.parse('$baseUrl/photos/like'),
+        headers: _headers,
+        body: jsonEncode({
+          'photoId': photoId,
+          'photoUsername': username,
+          'photoDate': date,
+          if (setState != null) 'set': setState,
+        }),
+      );
+    } catch (e) {
+      // network error - enqueue if desired by caller
+      if (enqueueOnFail) {
+        try {
+          await enqueueLikeAction(photoId, username, date, setState ?? true);
+        } catch (_) {}
+      }
+      return null;
+    }
 
     if (response.statusCode != 200) {
       throw Exception('Failed to like photo');
