@@ -12,7 +12,7 @@ import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/memory_calendar_screen.dart';
 import 'screens/email_verification_screen.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'l10n/app_localizations.dart';
 
 import 'services/simple_notification_service.dart';
 import 'package:permission_handler/permission_handler.dart';
