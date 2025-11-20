@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Vibes - Installieren</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #FF6B9D 0%, #C239B3 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #FF6B9D;
+            font-size: 36px;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .tagline {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .app-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #FF6B9D 0%, #C239B3 100%);
+            color: white;
+            text-decoration: none;
+            padding: 18px 40px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+        }
+
+        .app-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 157, 0.5);
+        }
+
+        .instructions {
+            margin-top: 40px;
+            text-align: left;
+        }
+
+        .instructions h2 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .platform-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+
+        .tab-button {
+            flex: 1;
+            max-width: 150px;
+            padding: 12px 20px;
+            border: 2px solid #FF6B9D;
+            background: white;
+            color: #FF6B9D;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-button.active {
+            background: linear-gradient(135deg, #FF6B9D 0%, #C239B3 100%);
+            color: white;
+        }
+
+        .platform-content {
+            display: none;
+        }
+
+        .platform-content.active {
+            display: block;
+        }
+
+        .step {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #FF6B9D;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #FF6B9D 0%, #C239B3 100%);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .step-text {
+            display: inline;
+            color: #333;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .icon-hint {
+            font-size: 24px;
+            margin: 0 5px;
+        }
+
+        .feature-list {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+
+        .feature-list h3 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .features {
+            display: grid;
+            gap: 15px;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .feature-icon {
+            font-size: 24px;
+        }
+
+        .feature-text {
+            color: #666;
+            font-size: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .tagline {
+                font-size: 16px;
+            }
+
+            .app-button {
+                font-size: 16px;
+                padding: 15px 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="logo">📸</div>
+            <h1>Daily Vibes</h1>
+            <p class="tagline">Teile deine Momente mit Freunden</p>
+            
+            <a href="https://dailyvibes.vercel.app" class="app-button">
+                🚀 App öffnen
+            </a>
+
+            <div class="instructions">
+                <h2>📱 Zum Homescreen hinzufügen</h2>
+                
+                <div class="platform-tabs">
+                    <button class="tab-button active" onclick="showPlatform('ios')">
+                        🍎 iPhone
+                    </button>
+                    <button class="tab-button" onclick="showPlatform('android')">
+                        🤖 Android
+                    </button>
+                </div>
+
+                <!-- iOS Instructions -->
+                <div id="ios-content" class="platform-content active">
+                    <div class="step">
+                        <span class="step-number">1</span>
+                        <span class="step-text">
+                            Öffne <strong>dailyvibes.vercel.app</strong> in Safari
+                        </span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">2</span>
+                        <span class="step-text">
+                            Tippe auf das <strong>Teilen-Symbol</strong> <span class="icon-hint">📤</span> unten in der Mitte
+                        </span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">3</span>
+                        <span class="step-text">
+                            Scrolle nach unten und wähle <strong>"Zum Home-Bildschirm"</strong> <span class="icon-hint">➕</span>
+                        </span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">4</span>
+                        <span class="step-text">
+                            Tippe auf <strong>"Hinzufügen"</strong> oben rechts
+                        </span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">5</span>
+                        <span class="step-text">
+                            Fertig! Daily Vibes ist jetzt auf deinem Homescreen 🎉
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Android Instructions -->
+                <div id="android-content" class="platform-content">
+                    <div class="step">
+                        <span class="step-number">1</span>
+                        <span class="step-text">
+                            Öffne <strong>dailyvibes.vercel.app</strong> in Chrome
+                        </span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">2</span>
+                        <span class="step-text">
+                            Tippe auf die <strong>drei Punkte</strong> <span class="icon-hint">⋮</span> oben rechts
+                        </span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">3</span>
+                        <span class="step-text">
+                            Wähle <strong>"Zum Startbildschirm hinzufügen"</strong> oder <strong>"App installieren"</strong>
+                        </span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">4</span>
+                        <span class="step-text">
+                            Bestätige mit <strong>"Hinzufügen"</strong>
+                        </span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">5</span>
+                        <span class="step-text">
+                            Fertig! Daily Vibes ist jetzt auf deinem Homescreen 🎉
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="feature-list">
+                <h3>✨ Features</h3>
+                <div class="features">
+                    <div class="feature">
+                        <span class="feature-icon">📸</span>
+                        <span class="feature-text">Täglich neue Foto-Challenges</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">👥</span>
+                        <span class="feature-text">Teile Momente mit Freunden</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🔥</span>
+                        <span class="feature-text">Sammle Streaks und Achievements</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">📅</span>
+                        <span class="feature-text">Speichere deine Erinnerungen</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🔒</span>
+                        <span class="feature-text">Sicher mit Email-Verifizierung</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🌙</span>
+                        <span class="feature-text">Badge-System (Nachteule, Frühaufsteher)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showPlatform(platform) {
+            // Update tabs
+            const tabs = document.querySelectorAll('.tab-button');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update content
+            const contents = document.querySelectorAll('.platform-content');
+            contents.forEach(content => content.classList.remove('active'));
+            document.getElementById(platform + '-content').classList.add('active');
+        }
+    </script>
+</body>
+</html>

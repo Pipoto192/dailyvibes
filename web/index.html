@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="daily_vibes_flutter">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Daily Vibes</title>
+  <link rel="manifest" href="manifest.json">
+  
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #1A1A1A 0%, #0A0A0A 100%);
+    }
+    
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(180deg, #1A1A1A 0%, #0A0A0A 100%);
+      z-index: 9999;
+    }
+    
+    #loading-logo {
+      width: 120px;
+      height: 120px;
+      margin-bottom: 30px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    #loading-text {
+      color: #FF6B9D;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    
+    .loader {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 107, 157, 0.1);
+      border-top: 4px solid #FF6B9D;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <svg id="loading-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#FF6B9D;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#FFA07A;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="45" fill="url(#gradient)"/>
+      <path d="M 35 45 L 45 35 L 55 45 L 65 35 M 50 50 Q 50 70 35 75 M 50 50 Q 50 70 65 75" 
+            stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div id="loading-text">Daily Vibes</div>
+    <div class="loader"></div>
+  </div>
+  
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        const loading = document.getElementById('loading');
+        if (loading) {
+          loading.style.opacity = '0';
+          loading.style.transition = 'opacity 0.5s';
+          setTimeout(function() {
+            loading.style.display = 'none';
+          }, 500);
+        }
+      }, 1000);
+    });
+  </script>
+  
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
