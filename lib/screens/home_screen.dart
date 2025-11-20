@@ -1181,11 +1181,18 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      await context.read<ApiService>().likePhoto(
+      final updatedLikes = await context.read<ApiService>().likePhoto(
         photo.id,
         photo.username,
         photo.date,
       );
+      // Ensure local state follows server authoritative state
+      if (mounted) {
+        setState(() {
+          photo.likes.clear();
+          photo.likes.addAll(updatedLikes);
+        });
+      }
     } catch (e) {
       // Revert optimistic change on error
       setState(() {

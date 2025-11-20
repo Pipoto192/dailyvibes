@@ -24,7 +24,10 @@ class ApiService {
 
   // Auth
   Future<Map<String, dynamic>> register(
-      String username, String email, String password) async {
+    String username,
+    String email,
+    String password,
+  ) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/register'),
       headers: {'Content-Type': 'application/json'},
@@ -48,10 +51,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': username,
-        'password': password,
-      }),
+      body: jsonEncode({'username': username, 'password': password}),
     );
 
     if (response.statusCode == 200) {
@@ -93,10 +93,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/photos/upload'),
       headers: _headers,
-      body: jsonEncode({
-        'imageData': imageData,
-        'caption': caption,
-      }),
+      body: jsonEncode({'imageData': imageData, 'caption': caption}),
     );
 
     if (response.statusCode != 200) {
@@ -151,8 +148,11 @@ class ApiService {
   }
 
   // Memory Calendar - neue Endpoints
-  Future<Map<String, int>> getMemoryCalendar(
-      {String? username, int? year, int? month}) async {
+  Future<Map<String, int>> getMemoryCalendar({
+    String? username,
+    int? year,
+    int? month,
+  }) async {
     String url = '$baseUrl/memories/calendar';
     List<String> queryParams = [];
 
@@ -164,10 +164,7 @@ class ApiService {
       url += '?${queryParams.join('&')}';
     }
 
-    final response = await http.get(
-      Uri.parse(url),
-      headers: _headers,
-    );
+    final response = await http.get(Uri.parse(url), headers: _headers);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -178,17 +175,16 @@ class ApiService {
     }
   }
 
-  Future<List<Photo>> getMemoriesForDate(String date,
-      {String? username}) async {
+  Future<List<Photo>> getMemoriesForDate(
+    String date, {
+    String? username,
+  }) async {
     String url = '$baseUrl/memories/date/$date';
     if (username != null) {
       url += '?username=$username';
     }
 
-    final response = await http.get(
-      Uri.parse(url),
-      headers: _headers,
-    );
+    final response = await http.get(Uri.parse(url), headers: _headers);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -219,10 +215,7 @@ class ApiService {
       url += '?username=$username';
     }
 
-    final response = await http.get(
-      Uri.parse(url),
-      headers: _headers,
-    );
+    final response = await http.get(Uri.parse(url), headers: _headers);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -247,7 +240,12 @@ class ApiService {
     }
   }
 
-  Future<void> likePhoto(String photoId, String username, String date) async {
+  /// Sends a toggle like request and returns the updated likes list from server.
+  Future<List<String>> likePhoto(
+    String photoId,
+    String username,
+    String date,
+  ) async {
     final response = await http.post(
       Uri.parse('$baseUrl/photos/like'),
       headers: _headers,
@@ -261,10 +259,22 @@ class ApiService {
     if (response.statusCode != 200) {
       throw Exception('Failed to like photo');
     }
+
+    final data = jsonDecode(response.body);
+    if (data['success'] == true && data['photo'] != null) {
+      final photo = data['photo'];
+      return (photo['likes'] as List? ?? []).map((e) => e as String).toList();
+    }
+
+    return [];
   }
 
   Future<void> commentPhoto(
-      String photoId, String username, String date, String text) async {
+    String photoId,
+    String username,
+    String date,
+    String text,
+  ) async {
     final response = await http.post(
       Uri.parse('$baseUrl/photos/comment'),
       headers: _headers,
@@ -422,10 +432,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/profile/email'),
       headers: _headers,
-      body: jsonEncode({
-        'newEmail': newEmail,
-        'password': password,
-      }),
+      body: jsonEncode({'newEmail': newEmail, 'password': password}),
     );
 
     if (response.statusCode != 200) {
